@@ -11,7 +11,8 @@ from random import *
 from time import sleep
 import copy
 
-noteDurations = [0.25, 0.5, 1.0, 2.0]
+# hard coding this in for now
+noteDurationSplits = {0.5: [[0.25, 0.25]], 0.75: [[0.25, 0.5], [0.5, 0.25]], 1.0: [[0.25, 0.75], [0.5, 0.5], [0.75, 0.25]]}
 
 class ScaleDefinition:
    def __init__(self, scalePattern, offset):
@@ -26,7 +27,7 @@ class ScaleDefinition:
 
       self.scale = scale
       self.offset = offset
-      
+
    def getPitch(self, pitch):
       return [self.scale[pitch + self.offset]]
 
@@ -39,16 +40,33 @@ class Channel:
       self.durations = []
 
    def mutate(self):
-      if len(self.pitches) == 0 or randint(0, 1) == 0:
+      if len(self.pitches) == 0 or randint(0, 2) == 0: # add a new one!
          self.pitches.append(randint(-4, 4))
-         self.durations.append(noteDurations[randint(0, len(noteDurations) - 1)])
-      else:
-         randomNumber = randint(0, 2)
-         randomIndex = randint(0, len(self.pitches) - 1)
-         if randomNumber <= 1:
-            self.pitches[randomIndex] = randint(-4, 4)
-         if randomNumber >= 1:
-            self.durations[randomIndex] = noteDurations[randint(0, len(noteDurations) - 1)]
+         self.durations.append(1.0)
+
+      elif len(self.pitches) == 1 or (randint(0, 1) == 0 and any(duration > 0.25 for duration in self.durations)): # split one into two!
+         index = randint(0, len(self.pitches) - 1)
+         while self.durations[index] == 0.25:
+            index = randint(0, len(self.pitches) - 1)
+
+         durationsList = noteDurationSplits[self.durations[index]]
+         newDurations = durationsList[randint(0, len(durationsList) - 1)]
+
+         self.durations[index] = newDurations[0]
+         self.durations.insert(index + 1, newDurations[1])
+         self.pitches.insert(index + 1, self.pitches[index])
+
+      else: # randomly mutate a note
+         index = randint(0, len(self.pitches) - 1)
+         pitch = self.pitches[index]
+         newPitch = randint(-4, 4)
+
+         while newPitch == pitch:
+            newPitch = randint(-4, 4)
+
+         self.pitches[index] = newPitch
+
+      #else: join two notes together
 
    def generatePart(self):
       pitches = []
