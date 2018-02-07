@@ -53,68 +53,93 @@ class Channel:
       self.chordIndexes = []
 
    def mutate(self):
-      if len(self.pitches) == 0 or randint(0, 4) == 0: # add a new one!
-         self.pitches.append(randint(-4, 4))
-         self.durations.append(1.0)
-         self.chordIndexes.append(0 if randint(0, 1) == 0 else self.chordIndexes[len(self.chordIndexes) - 1] if len(self.chordIndexes) > 0 and randint(0, 1) == 0 else randint(1, len(chords) - 1))
+      mutated = False
 
-      elif len(self.pitches) > 0 and (randint(0, 3) == 0 and any(duration >= 0.5 and duration <= 1.0 for duration in self.durations)): # split one into two!
-         index = randint(0, len(self.pitches) - 1)
-         while self.durations[index] == 0.25:
+      while not mutated:
+         diceRoll = randint(0, 5)
+         print diceRoll
+
+         if len(self.pitches) == 0 or diceRoll == 0: # add a new one!
+            self.pitches.append(randint(-4, 4))
+            self.durations.append(1.0)
+            self.chordIndexes.append(0 if randint(0, 1) == 0 else self.chordIndexes[len(self.chordIndexes) - 1] if len(self.chordIndexes) > 0 and randint(0, 1) == 0 else randint(1, len(chords) - 1))
+            mutated = True
+
+         elif len(self.pitches) > 0 and (diceRoll == 1 and any(duration >= 0.5 and duration <= 1.0 for duration in self.durations)): # split one into two!
             index = randint(0, len(self.pitches) - 1)
+            while self.durations[index] == 0.25:
+               index = randint(0, len(self.pitches) - 1)
 
-         durationsList = noteDurationSplits[self.durations[index]]
-         newDurations = durationsList[randint(0, len(durationsList) - 1)]
+            durationsList = noteDurationSplits[self.durations[index]]
+            newDurations = durationsList[randint(0, len(durationsList) - 1)]
 
-         self.durations[index] = newDurations[0]
-         self.durations.insert(index + 1, newDurations[1])
-         self.pitches.insert(index + 1, self.pitches[index])
-         self.chordIndexes.insert(index + 1, self.chordIndexes[index])
+            self.durations[index] = newDurations[0]
+            self.durations.insert(index + 1, newDurations[1])
+            self.pitches.insert(index + 1, self.pitches[index])
+            self.chordIndexes.insert(index + 1, self.chordIndexes[index])
+            mutated = True
 
-      elif canMergeNotes(self.durations) and randint(0, 2) == 0: # merge two into one
-         merged = False
+         elif canMergeNotes(self.durations) and diceRoll == 2: # merge two into one
+            merged = False
 
-         while not merged:
-            index = randint(0, len(self.durations) - 2)
-            if self.durations[index] + self.durations[index + 1] in noteDurationJoins:
-               newDuration = self.durations[index] + self.durations[index + 1]
-               self.durations[index] = newDuration
-               del self.durations[index + 1]
-               del self.pitches[index + 1]
-               del self.chordIndexes[index + 1]
-               merged = True
+            while not merged:
+               index = randint(0, len(self.durations) - 2)
+               if self.durations[index] + self.durations[index + 1] in noteDurationJoins:
+                  newDuration = self.durations[index] + self.durations[index + 1]
+                  self.durations[index] = newDuration
+                  del self.durations[index + 1]
+                  del self.pitches[index + 1]
+                  del self.chordIndexes[index + 1]
+                  merged = True
+            mutated = True
 
-      elif randint(0,1) == 0: #modify some chords
-         actuallyDifferent = False
+         elif diceRoll == 3: #modify some chords
+            actuallyDifferent = False
 
-         while not actuallyDifferent:
-            index1 = randint(0, len(self.durations))
-            index2 = randint(0, len(self.durations))
+            while not actuallyDifferent:
+               index1 = randint(0, len(self.durations))
+               index2 = randint(0, len(self.durations))
 
-            if index2 < index1: # I feel like there's probably some clever way to do this but it'll take longer to google than to just write this
-               temp = index1
-               index1 = index2
-               index2 = temp
+               if index2 < index1: # I feel like there's probably some clever way to do this but it'll take longer to google than to just write this
+                  temp = index1
+                  index1 = index2
+                  index2 = temp
 
-            newChordIndex = 0 if randint(0, 1) == 0 else randint(1, len(chords) - 1)
+               newChordIndex = 0 if randint(0, 1) == 0 else randint(1, len(chords) - 1)
 
-            newChordIndexes = copy.deepcopy(self.chordIndexes)
-            for index in range(index1, index2):
-               newChordIndexes[index] = newChordIndex
+               newChordIndexes = copy.deepcopy(self.chordIndexes)
+               for index in range(index1, index2):
+                  newChordIndexes[index] = newChordIndex
 
-            if newChordIndexes != self.chordIndexes:
-               actuallyDifferent = True
-               self.chordIndexes = newChordIndexes
+               if newChordIndexes != self.chordIndexes:
+                  actuallyDifferent = True
+                  self.chordIndexes = newChordIndexes
+            mutated = True
 
-      else: # randomly mutate a note
-         index = randint(0, len(self.pitches) - 1)
-         pitch = self.pitches[index]
-         newPitch = randint(-4, 4)
-
-         while newPitch == pitch:
+         elif diceRoll == 4: # randomly mutate a note
+            index = randint(0, len(self.pitches) - 1)
+            pitch = self.pitches[index]
             newPitch = randint(-4, 4)
 
-         self.pitches[index] = newPitch
+            while newPitch == pitch:
+               newPitch = randint(-4, 4)
+
+            self.pitches[index] = newPitch
+            mutated = True
+
+         elif diceRoll == 5: # duplicate a random range and slap on the end
+            startIndex = 0 if randint(0, 1) == 0 else randint(0, len(self.pitches))
+            endIndex = len(self.pitches) if randint(0, 1) == 0 else randint(0, len(self.pitches))
+
+            if startIndex > endIndex: # See my earlier comment
+               temp = startIndex
+               startIndex = endIndex
+               endIndex = temp
+
+            self.pitches.extend(self.pitches[startIndex:endIndex])
+            self.durations.extend(self.durations[startIndex:endIndex])
+            self.chordIndexes.extend(self.chordIndexes[startIndex:endIndex])
+            mutated = True
 
    def generatePart(self):
       pitches = []
