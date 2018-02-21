@@ -10,6 +10,9 @@ from music import *
 from random import *
 from time import sleep
 import copy
+# infuriatingly neither pickle nor tkinter seem to be working for me so I'm doing workarounds just to get this actually working
+# import pickle
+# import tkinter
 
 # hard coding this in for now
 noteDurationSplits = {0.5: [[0.25, 0.25]], 0.75: [[0.25, 0.5], [0.5, 0.25]], 1.0: [[0.25, 0.75], [0.5, 0.5], [0.75, 0.25]]}
@@ -38,19 +41,22 @@ class ScaleDefinition:
 
    def getPitch(self, pitch, chordIndex):
       chord = [self.scale[pitch + self.offset]]
-      thang = chords[chordIndex]
-      for thing in thang: #I have no idea what the correct music terminology for this would be
-         chord.append(self.scale[pitch + self.offset + thing])
+      if chordIndex:
+         thang = chords[chordIndex]
+         for thing in thang: #I have no idea what the correct music terminology for this would be
+            chord.append(self.scale[pitch + self.offset + thing])
       return chord
 
 class Channel:
-   def __init__(self, instrument, channel, scale, offset):
+   def __init__(self, instrument, channel, scalePattern, offset, pitches, durations, chordIndexes):
       self.instrument = instrument
       self.channel = channel
-      self.scale = ScaleDefinition(scale, offset)
-      self.pitches = []
-      self.durations = []
-      self.chordIndexes = []
+      self.scalePattern = scalePattern
+      self.offset = offset
+      self.scale = ScaleDefinition(scalePattern, offset)
+      self.pitches = pitches
+      self.durations = durations
+      self.chordIndexes = chordIndexes
 
    def mutate(self):
       mutated = False
@@ -154,9 +160,66 @@ class Channel:
       part.addPhrase(phrase)
       return part
 
-channels = []
+   def write(self, file):
+      file.write("Channel\n")
+      file.write(str(self.instrument) + "\n")
+      file.write(str(self.channel) + "\n")
+      file.write(str(self.pitches) + "\n")
+      file.write(str(self.durations) + "\n")
+      file.write(str(self.chordIndexes) + "\n")
+      file.write(str(self.scalePattern) + "\n")
+      file.write(str(self.offset) + "\n")
 
-channels.append(Channel(ELECTRIC_GRAND, 0, [2, 2, 1, 2, 2, 2, 1], 36))
+class BassChannel:
+   def __init__(self, instrument, channel, scale, offset):
+      self.instrument = instrument
+      self.channel = channel
+      self.scale = ScaleDefinition(scale, offset)
+      self.pitches = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+      self.durations = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+   def generatePart(self):
+      pitches = []
+      for index in range(len(self.pitches)):
+         pitches.append(self.scale.getPitch(self.pitches[index], None))
+      phrase = Phrase(0.0)
+      print pitches
+      print self.durations
+      phrase.addNoteList(pitches, self.durations)
+      part = Part(self.instrument, self.channel)
+      part.addPhrase(phrase)
+      return part
+
+channels = []
+bassChannels = []
+
+response = raw_input("Load from file?")
+
+if response == 'y':
+   filename = raw_input("Please enter filename")
+   file = open(filename, 'rb')
+
+   nekMinnit = file.readline()
+
+   while (nekMinnit != "End\n"):
+      if (nekMinnit == "Channel\n"):
+         instrument = int(file.readline()[:-1])
+         channel = int(file.readline()[:-1])
+         pitches = eval(file.readline()[:-1])
+         durations = eval(file.readline()[:-1])
+         chordIndexes = eval(file.readline()[:-1])
+         scalePattern = eval(file.readline()[:-1])
+         offset = int(file.readline()[:-1])
+
+         channels.append(Channel(instrument, channel, scalePattern, offset, pitches, durations, chordIndexes))
+
+      nekMinnit = file.readline()
+
+   file.close()
+
+else:
+   channels.append(Channel(ELECTRIC_GRAND, 0, [2, 2, 1, 2, 2, 2, 1], 36, [], [], []))
+   #bassChannels.append(BassChannel(ELECTRIC_BASS, 1, [2, 2, 1, 2, 2, 2, 1], 24))
 
 while (True):
    score = Score("Score", 120.0)
@@ -166,6 +229,9 @@ while (True):
    for channel in mutantChannels:
       channel.mutate()
       score.addPart(channel.generatePart())
+
+   for bassChannel in bassChannels:
+      score.addPart(bassChannel.generatePart())
 
    # Will play smoother on my laptop if I pause for a moment before playing.
    # I guess even computers need to get mentally prepared.
@@ -177,3 +243,13 @@ while (True):
 
    if response == 'y':
       channels = mutantChannels
+
+   if response == 's':
+      channels = mutantChannels
+      file = open("testfile.txt","wb")
+
+      for channel in mutantChannels:
+         channel.write(file)
+
+      file.write("End\n")
+      file.close()
